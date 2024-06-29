@@ -5,11 +5,15 @@ from rest_framework.routers import DefaultRouter
 from shopapp.views.customer_views import CustomerViewSet
 from shopapp.views.manager_views import ManagerAccountViewSet
 from shopapp.views.company_views import CompanyAccountViewSet
+from shopapp.views.item_views import ItemViewSet
+from shopapp.views.category_views import CategoryViewSet
 
 router = DefaultRouter()
 router.register(r'customers', CustomerViewSet)
 router.register(r'managers', ManagerAccountViewSet)
 router.register(r'companies', CompanyAccountViewSet)
+router.register(r'items', ItemViewSet)
+router.register(r'categories', CategoryViewSet, basename='category')
 
 urlpatterns = [
     path('', include(router.urls)),

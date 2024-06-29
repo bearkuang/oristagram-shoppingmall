@@ -6,6 +6,7 @@ from shopapp.models.account import CompanyAccount
 from shopapp.models.item import ItemImage
 from shopapp.services.account_services import create_company, login_company
 from shopapp.serializers import CompanySerializer, ItemSerializer, ItemOptionSerializer
+import json
 
 class CompanyAccountViewSet(viewsets.ModelViewSet):
     queryset = CompanyAccount.objects.all()
@@ -49,25 +50,37 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def add_item(self, request):
-        company = self.request.user
-        if company.activate != 1:
-            return Response({"error": "Company account is not activated"}, status=status.HTTP_403_FORBIDDEN)
-        
-        item_serializer = ItemSerializer(data=request.data.get('item'))
+        print("Request data:", request.data)  # 디버깅을 위해 요청 데이터 출력
+
+        item_data = {
+            "cate_no": request.data.get('cate_no'),
+            "item_name": request.data.get('item_name'),
+            "item_description": request.data.get('item_description'),
+            "item_price": request.data.get('item_price'),
+            "item_soldout": request.data.get('item_soldout'),
+            "item_is_display": request.data.get('item_is_display'),
+            "item_company": request.data.get('item_company'),
+        }
+
+        print("Item data:", item_data)  # 디버깅을 위해 아이템 데이터 출력
+
+        item_serializer = ItemSerializer(data=item_data)
+        if not item_serializer.is_valid():
+            print("Serializer errors:", item_serializer.errors)
         item_serializer.is_valid(raise_exception=True)
         item = item_serializer.save()
-        
+
         # Handle ItemImage
         images = request.FILES.getlist('images')
         for image in images:
             ItemImage.objects.create(file=image, item_no=item)
-        
+
         # Handle ItemOption
-        options_data = request.data.get('options')
+        options_data = json.loads(request.data.get('options', '[]'))
         for option_data in options_data:
             option_data['item_no'] = item.id
             option_serializer = ItemOptionSerializer(data=option_data)
             option_serializer.is_valid(raise_exception=True)
             option_serializer.save()
-        
+
         return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)

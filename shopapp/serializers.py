@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, ManagerAccount, CompanyAccount, Item, ItemImage, ItemOption, Category, Cart, Order, OrderProduct, Like
+from .models import Customer, ManagerAccount, CompanyAccount, Item, ItemImage, ItemOption, Category, Cart, Order, OrderProduct, Like, Review
 
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,16 +25,11 @@ class CompanySerializer(serializers.ModelSerializer):
         model = CompanyAccount
         fields = ['id', 'company_id', 'company_pwd']
         
-class ItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Item
-        fields = ['id', 'cate_no', 'item_name', 'item_price', 'item_create_date', 'item_soldout', 'item_is_display', 'item_company']
-
 class ItemImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemImage
         fields = ['id', 'file', 'item_no']
-        
+
 class ItemOptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemOption
@@ -44,7 +39,28 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'main_cate_name', 'cate_name']
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['id', 'review_star', 'review_contents', 'review_create_date', 'review_image']
         
+class ItemSerializer(serializers.ModelSerializer):
+    cate_no = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=True)
+    images = ItemImageSerializer(many=True, read_only=True, source='itemimage_set')
+    options = ItemOptionSerializer(many=True, read_only=True, source='itemoption_set')
+    category = CategorySerializer(source='cate_no', read_only=True)
+    likes = serializers.SerializerMethodField()
+    reviews = ReviewSerializer(many=True, read_only=True)
+    item_description = serializers.CharField(max_length=100)
+
+    class Meta:
+        model = Item
+        fields = ['id', 'cate_no', 'category', 'item_name', 'item_description', 'item_price', 'item_soldout', 'item_is_display', 'item_company', 'images', 'options', 'likes', 'reviews']
+
+    def get_likes(self, obj):
+        return Like.objects.filter(item_no=obj).count()
+    
 class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
