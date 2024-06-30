@@ -62,19 +62,27 @@ class ItemSerializer(serializers.ModelSerializer):
         return Like.objects.filter(item_no=obj).count()
     
 class CartSerializer(serializers.ModelSerializer):
+    option = ItemOptionSerializer(source='opt_no', read_only=True)
+    item = ItemSerializer(source='opt_no.item_no', read_only=True)
+    
     class Meta:
         model = Cart
-        fields = ['id', 'cust_no', 'cart_order_amount', 'opt_no', 'cart_create_date']
-        
-class OrderSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Order
-        fields = ['id', 'cust_no', 'order_create_date', 'order_payment_status', 'order_payment_method', 'order_total_price', 'cust_address']
+        fields = ['id', 'item', 'option', 'cart_order_amount', 'cart_create_date']
         
 class OrderProductSerializer(serializers.ModelSerializer):
+    item = ItemSerializer(source='opt_no.item_no', read_only=True)
+    option = ItemOptionSerializer(source='opt_no', read_only=True)
+    
     class Meta:
         model = OrderProduct
-        fields = ['id', 'order_no', 'order_amount', 'order_payment_status', 'order_payment_method', 'order_total_price', 'cust_address']
+        fields = ['id', 'item', 'option', 'order_amount', 'review_enabled', 'order_product_status']
+
+class OrderSerializer(serializers.ModelSerializer):
+    order_products = OrderProductSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'cust_no', 'order_create_date', 'order_payment_status', 'order_payment_method', 'order_total_price', 'cust_address', 'order_products']
         
 class LikeSerializer(serializers.ModelSerializer):
     class Meta:

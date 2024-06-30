@@ -40,27 +40,19 @@ def create_company(company_data):
     return company
 
 def login_user(cust_username, cust_password):
-    user = None
+    try:
+        user = Customer.objects.get(cust_username=cust_username)
+    except Customer.DoesNotExist:
+        return {"error": "Invalid credentials"}
 
-    if cust_username:
-        try:
-            user = Customer.objects.get(cust_username=cust_username)
-            print(f"Found user by cust_username: {user.cust_username}")
-        except Customer.DoesNotExist:
-            print("No user found with this cust_username.")
-
-    if user:
-        print(f"Authenticating user: {user.cust_username} with password: {cust_password}")
-        authenticated_user = authenticate(username=user.cust_username, password=cust_password)
-        if authenticated_user:
-            print("Authentication successful")
-        else:
-            print("Authentication failed")
-
-    if user is None:
+    if user.cust_password != cust_password:
         return {"error": "Invalid credentials"}
 
     refresh = RefreshToken.for_user(user)
+    refresh['username'] = user.cust_username
+    refresh['user_type'] = 'customer'
+    print(f"Generated token: {refresh}")
+
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),

@@ -44,3 +44,7 @@ class Customer(models.Model):
     cust_address = models.CharField(max_length=256)
     cust_email = models.CharField(max_length=256)
     cust_create_date = models.DateTimeField(auto_now_add=True)
+    
+    @property
+    def is_authenticated(self):
+        return True

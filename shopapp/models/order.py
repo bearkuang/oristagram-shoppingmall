@@ -11,8 +11,8 @@ class Order(models.Model):
 
 class OrderProduct(models.Model):
     id = models.AutoField(primary_key=True)
-    order_no = models.ForeignKey(Order, on_delete=models.CASCADE)
+    order_no = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_products')
     order_amount = models.IntegerField()
     opt_no = models.ForeignKey('ItemOption', on_delete=models.CASCADE)
     review_enabled = models.CharField(max_length=255, null=True, default='N')
-    order_product_status = models.CharField(max_length=15)
+    order_product_status = models.CharField(max_length=15, default='주문완료')
