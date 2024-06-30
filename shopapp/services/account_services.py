@@ -1,8 +1,40 @@
 from shopapp.models.account import Customer, ManagerAccount, CompanyAccount
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+import random
+from django.core.mail import send_mail
+from django.core.cache import cache
 
-def create_customer(customer_data):
+def generate_verification_code():
+    return str(random.randint(100000, 999999))
+
+def send_verification_email(email):
+    code = generate_verification_code()
+    subject = '이메일 인증 코드'
+    message = f'귀하의 인증 코드는 {code} 입니다. 이 코드는 10분간 유효합니다.'
+    from_email = 'your-email@example.com'
+    recipient_list = [email]
+    
+    send_mail(subject, message, from_email, recipient_list)
+    
+    # 캐시에 인증 코드 저장 (10분 동안 유효)
+    cache_key = f'verification_code_{email}'
+    cache.set(cache_key, code, 600)
+    
+    # 디버그 로그 추가
+    print(f"Stored code in cache: {code}")
+    print(f"Retrieved code from cache: {cache.get(cache_key)}")
+
+    return code
+
+def verify_email_code(email, code):
+    cache_code = cache.get(f'verification_code_{email}')
+    return cache_code == code
+
+def create_customer(customer_data, is_verified=False):
+    if not is_verified:
+        raise ValueError('Email is not verified')
+    
     customer = Customer.objects.create(
         cust_username=customer_data['cust_username'],
         cust_name=customer_data['cust_name'],

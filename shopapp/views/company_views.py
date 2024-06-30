@@ -41,6 +41,7 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
         
         return Response(tokens, status=status.HTTP_200_OK)
     
+    # 로그인
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -48,6 +49,7 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
         user = create_company(serializer.validated_data)
         return Response(CompanySerializer(user).data, status=status.HTTP_201_CREATED)
 
+    # 상품 추가
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def add_item(self, request):
         print("Request data:", request.data)  # 디버깅을 위해 요청 데이터 출력
