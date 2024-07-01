@@ -4,6 +4,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
+from decimal import Decimal, InvalidOperation
 from shopapp.models.account import Customer
 from shopapp.views.permissions import IsCustomer
 from shopapp.models.item import Item, ItemImage, ItemOption, Category, Like, Cart
@@ -23,6 +25,9 @@ class ItemViewSet(viewsets.ModelViewSet):
     # 기업이 상품 등록
     def create(self, request, *args, **kwargs):
         print("Request data:", request.data)  # 로그 추가
+        print("Request data:", request.data)  # 요청 데이터 로그
+        print("Request user:", request.user)  # 요청 사용자 로그
+        print("Request auth:", request.auth)  # 요청 인증 정보 로그
         # Parse the form data from the request
         item_data = {
             "cate_no": request.data.get('cate_no'),
@@ -61,6 +66,10 @@ class ItemViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def categorized(self, request):
         cate_no = request.query_params.get('cate_no', None)
+        colors = request.query_params.getlist('color')
+        min_price = request.query_params.get('min_price', None)
+        max_price = request.query_params.get('max_price', None)
+
         if cate_no is None:
             return Response({"error": "Category ID is required"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -70,6 +79,22 @@ class ItemViewSet(viewsets.ModelViewSet):
             return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
 
         items = Item.objects.filter(cate_no=category).order_by('-item_create_date')
+
+        # 색상 필터 적용
+        if colors:
+            items = items.filter(itemoption__opt_color__in=colors).distinct()
+
+        # 가격 범위 필터 적용
+        try:
+            if min_price:
+                min_price = Decimal(min_price)
+                items = items.filter(item_price__gte=min_price)
+            if max_price:
+                max_price = Decimal(max_price)
+                items = items.filter(item_price__lte=max_price)
+        except InvalidOperation:
+            return Response({"error": "Invalid price format"}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(items, many=True)
         return Response(serializer.data)
     
@@ -206,4 +231,82 @@ class ItemViewSet(viewsets.ModelViewSet):
         
         cart_items = Cart.objects.filter(cust_no=customer)
         serializer = CartSerializer(cart_items, many=True)
+        return Response(serializer.data)
+    
+    # 전체 상품 보기
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def all(self, request):
+        # 쿼리 파라미터 받기
+        colors = request.query_params.getlist('color')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+
+        # 기본 쿼리셋
+        queryset = self.get_queryset()
+
+        # 색상 필터 적용
+        if colors:
+            color_q = Q()
+            for color in colors:
+                color_q |= Q(itemoption__opt_color__iexact=color)
+            queryset = queryset.filter(color_q).distinct()
+
+        # 가격 범위 필터 적용
+        if min_price:
+            queryset = queryset.filter(item_price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(item_price__lte=max_price)
+
+        # 정렬 (예: 최신순)
+        queryset = queryset.order_by('-item_create_date')
+
+        # 페이지네이션 (옵션)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    # 상품 좋아요
+    @action(detail=True, methods=['post'], permission_classes=[IsCustomer])
+    def like(self, request, pk=None):
+        item = self.get_object()
+        customer_username = request.auth.get('username')
+        
+        if not customer_username:
+            raise PermissionDenied("Customer information not found in the token.")
+        
+        customer = get_object_or_404(Customer, cust_username=customer_username)
+        
+        like, created = Like.objects.get_or_create(cust_no=customer, item_no=item)
+
+        if not created:
+            # 이미 좋아요가 존재하면 삭제 (좋아요 취소)
+            like.delete()
+            return Response({'status': 'like_removed'}, status=status.HTTP_200_OK)
+        
+        # 새로운 좋아요가 생성됐다면
+        serializer = LikeSerializer(like)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    # 좋아요 한 상품 불러오기
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsCustomer])
+    def liked_items(self, request):
+        # JWT 토큰에서 username 추출
+        customer_username = request.auth.get('username')
+        if not customer_username:
+            return Response({"error": "Customer information not found in the token."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        # 고객 객체 가져오기
+        customer = get_object_or_404(Customer, cust_username=customer_username)
+        
+        # 고객이 좋아요한 상품들 가져오기
+        liked_items = Item.objects.filter(like__cust_no=customer)
+        
+        # 상품 정보 직렬화
+        serializer = self.get_serializer(liked_items, many=True)
+        
         return Response(serializer.data)
