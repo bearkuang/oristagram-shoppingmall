@@ -2,14 +2,14 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from shopapp.models.account import Customer
+from shopapp.models.account import User
 from shopapp.services.account_services import create_customer, login_user, send_verification_email, verify_email_code
-from shopapp.serializers import CustomerSerializer
+from shopapp.serializers import UserSerializer
 from django.core.cache import cache
 
 class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
-    serializer_class = CustomerSerializer
+    queryset = User.objects.filter(is_company=False)
+    serializer_class = UserSerializer
     
     def get_permissions(self):
         if self.action in ['create', 'login', 'register', 'request_verification', 'verify_email']:
@@ -77,10 +77,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
         email = request.data.get('cust_email')
         errors = {}
 
-        if username and Customer.objects.filter(cust_username=username).exists():
+        if username and User.objects.filter(username=username).exists():
             errors['cust_username'] = '이미 존재하는 아이디 입니다.'
 
-        if email and Customer.objects.filter(cust_email=email).exists():
+        if email and User.objects.filter(email=email).exists():
             errors['cust_email'] = '이미 가입된 이메일입니다. 다른 이메일을 입력해주세요.'
 
         if errors:
@@ -101,10 +101,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
         errors = {}
 
         # 아이디와 이메일 중복 검사를 한 번에 수행
-        if Customer.objects.filter(cust_username=username).exists():
+        if User.objects.filter(username=username).exists():
             errors['cust_username'] = "이미 가입된 아이디입니다."
         
-        if Customer.objects.filter(cust_email=email).exists():
+        if User.objects.filter(email=email).exists():
             errors['cust_email'] = "이미 가입된 이메일입니다."
         
         if errors:
@@ -116,4 +116,4 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Response({"error": "Invalid or expired verification code"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = create_customer(serializer.validated_data, is_verified=True)
-        return Response(CustomerSerializer(user).data, status=status.HTTP_201_CREATED)
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)

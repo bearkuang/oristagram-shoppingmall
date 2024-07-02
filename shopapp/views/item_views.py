@@ -6,20 +6,26 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 from decimal import Decimal, InvalidOperation
-from shopapp.models.account import Customer
-from shopapp.views.permissions import IsCustomer
+from shopapp.models.account import User
 from shopapp.models.item import Item, ItemImage, ItemOption, Category, Like, Cart
 from shopapp.serializers import ItemSerializer, ItemImageSerializer, ItemOptionSerializer, LikeSerializer, CartSerializer
 import json
 from django.db.models import Count
+from .permissions import IsAuthenticatedCompany
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class ItemViewSet(viewsets.ModelViewSet):
     queryset = Item.objects.all().order_by('item_create_date')
     serializer_class = ItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAuthenticatedCompany]
+    authentication_classes = [JWTAuthentication]
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAuthenticatedCompany])
     def add_item(self, request):
+        print(f"요청 사용자: {request.user}")
+        print(f"사용자 타입: {type(request.user)}")
+        print(f"사용자 ID: {request.user.id}")
+        print(f"사용자 이름: {request.user.username}")
         return self.create(request)
     
     # 기업이 상품 등록
@@ -125,7 +131,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     # 상품 좋아요
-    @action(detail=True, methods=['post'], permission_classes=[IsCustomer])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def like(self, request, pk=None):
         print(f"Auth: {request.auth}")  # JWT 토큰 내용 출력
         print(f"User: {request.user}")  # 현재 사용자 정보 출력
@@ -136,7 +142,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         like, created = Like.objects.get_or_create(cust_no=customer, item_no=item)
 
@@ -148,7 +154,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # 상품 좋아요 상태 확인
-    @action(detail=True, methods=['get'], permission_classes=[IsCustomer])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def like_status(self, request, pk=None):
         item = self.get_object()
         
@@ -156,20 +162,20 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         is_liked = Like.objects.filter(cust_no=customer, item_no=item).exists()
         return Response({'is_liked': is_liked})
     
     # 장바구니에 추가
-    @action(detail=False, methods=['post'], permission_classes=[IsCustomer])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def add_to_cart(self, request):
         # JWT 토큰에서 username을 가져옵니다.
         customer_username = request.auth.get('username')
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         # 요청에서 수량과 옵션 정보를 가져옵니다.
         quantity = request.data.get('quantity', 1)
@@ -221,13 +227,13 @@ class ItemViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     # 장바구니 보기
-    @action(detail=False, methods=['get'], permission_classes=[IsCustomer])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def view_cart(self, request):
         customer_username = request.auth.get('username')
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         cart_items = Cart.objects.filter(cust_no=customer)
         serializer = CartSerializer(cart_items, many=True)
@@ -270,7 +276,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     # 상품 좋아요
-    @action(detail=True, methods=['post'], permission_classes=[IsCustomer])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def like(self, request, pk=None):
         item = self.get_object()
         customer_username = request.auth.get('username')
@@ -278,7 +284,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         like, created = Like.objects.get_or_create(cust_no=customer, item_no=item)
 
@@ -292,7 +298,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     # 좋아요 한 상품 불러오기
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsCustomer])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def liked_items(self, request):
         # JWT 토큰에서 username 추출
         customer_username = request.auth.get('username')
@@ -301,7 +307,7 @@ class ItemViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         
         # 고객 객체 가져오기
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         # 고객이 좋아요한 상품들 가져오기
         liked_items = Item.objects.filter(like__cust_no=customer)

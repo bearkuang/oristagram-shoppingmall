@@ -1,50 +1,38 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
-class ManagerAccountManager(BaseUserManager):
-    def create_user(self, manager_id, password=None, **extra_fields):
-        if not manager_id:
-            raise ValueError('The Manager ID must be set')
-        user = self.model(manager_id=manager_id, **extra_fields)
+class UserManager(BaseUserManager):
+    def create_user(self, username, password=None, is_company=False, **extra_fields):
+        if not username:
+            raise ValueError('The Username must be set')
+        user = self.model(username=username, is_company=is_company, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, manager_id, password=None, **extra_fields):
+    def create_superuser(self, username, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        return self.create_user(username, password, **extra_fields)
 
-        return self.create_user(manager_id, password, **extra_fields)
-
-class ManagerAccount(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     id = models.AutoField(primary_key=True)
-    manager_id = models.CharField(max_length=20, unique=True)
-
-    USERNAME_FIELD = 'manager_id'
+    username = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=50)
+    password = models.CharField(max_length=128)
+    gender = models.CharField(max_length=1, null=True, default='F')
+    birthday = models.DateField(null=True)
+    address = models.CharField(max_length=256)
+    email = models.CharField(max_length=256, unique=True)
+    create_date = models.DateTimeField(auto_now_add=True)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_company = models.BooleanField(default=False)
+    
+    USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
 
-    objects = ManagerAccountManager()
+    objects = UserManager()
 
     def __str__(self):
-        return self.manager_id
-
-class CompanyAccount(models.Model):
-    id = models.AutoField(primary_key=True)
-    company_id = models.CharField(max_length=20, unique=True)
-    company_pwd = models.CharField(max_length=20)
-    activate = models.IntegerField(default=0)
-
-class Customer(models.Model):
-    id = models.AutoField(primary_key=True)
-    cust_username = models.CharField(max_length=20, unique=True)
-    cust_name = models.CharField(max_length=50)
-    cust_password = models.CharField(max_length=20)
-    cust_gender = models.CharField(max_length=1, null=True, default='F')
-    cust_birthday = models.DateField(null=True)
-    cust_address = models.CharField(max_length=256)
-    cust_email = models.CharField(max_length=256)
-    cust_create_date = models.DateTimeField(auto_now_add=True)
-    
-    @property
-    def is_authenticated(self):
-        return True
+        return self.username

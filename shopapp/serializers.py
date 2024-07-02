@@ -1,30 +1,20 @@
 from rest_framework import serializers
-from .models import Customer, ManagerAccount, CompanyAccount, Item, ItemImage, ItemOption, Category, Cart, Order, OrderProduct, Like, Review
+from .models import User, Item, ItemImage, ItemOption, Category, Cart, Order, OrderProduct, Like, Review
 
-class CustomerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Customer
-        fields = ['id', 'cust_username', 'cust_name', 'cust_password', 'cust_gender', 'cust_birthday', 'cust_address', 'cust_email', 'cust_create_date']
-
-class ManagerSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = ManagerAccount
-        fields = ['id', 'manager_id', 'password']
-
+        model = User
+        fields = ['id', 'username', 'password', 'name', 'gender', 'birthday', 'address', 'email', 'create_date', 'is_staff', 'is_active', 'is_company']
+        
     def create(self, validated_data):
         password = validated_data.pop('password')
-        manager = ManagerAccount.objects.create(**validated_data)
-        manager.set_password(password)
-        manager.save()
-        return manager
+        user = User.objects.create(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
-class CompanySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CompanyAccount
-        fields = ['id', 'company_id', 'company_pwd']
-        
 class ItemImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemImage

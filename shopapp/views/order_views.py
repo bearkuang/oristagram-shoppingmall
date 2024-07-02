@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from django.db import transaction
-from shopapp.models.account import Customer
+from shopapp.models.account import User
 from shopapp.views.permissions import IsCustomer
 from shopapp.models.order import Order, OrderProduct
 from shopapp.models.item import ItemOption, Cart, Item
@@ -23,7 +23,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         order_data = request.data
         
@@ -33,7 +33,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order_payment_status=order_data.get('order_payment_status', '결제완료'),
                 order_payment_method=order_data.get('order_payment_method', '신용/체크'),
                 order_total_price=order_data.get('order_total_price', 0),
-                cust_address=order_data.get('cust_address', customer.cust_address)
+                cust_address=order_data.get('cust_address', customer.address)
             )
             
             cart_items = order_data.get('cart_items', [])
@@ -52,7 +52,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         order_data = request.data
         
@@ -62,7 +62,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order_payment_status=order_data.get('order_payment_status', '결제완료'),
                 order_payment_method=order_data.get('order_payment_method', '신용/체크'),
                 order_total_price=order_data.get('order_total_price', 0),
-                cust_address=order_data.get('cust_address', customer.cust_address)
+                cust_address=order_data.get('cust_address', customer.address)
             )
             
             item_id = order_data.get('item_id')
@@ -101,7 +101,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(Customer, cust_username=customer_username)
+        customer = get_object_or_404(User, username=customer_username, is_customer=True)
         
         orders = Order.objects.filter(cust_no=customer).order_by('-order_create_date')
         serializer = OrderSerializer(orders, many=True)

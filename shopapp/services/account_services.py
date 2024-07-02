@@ -1,5 +1,4 @@
-from shopapp.models.account import Customer, ManagerAccount, CompanyAccount
-from django.contrib.auth import authenticate
+from shopapp.models.account import User
 from rest_framework_simplejwt.tokens import RefreshToken
 import random
 from django.core.mail import send_mail
@@ -31,58 +30,33 @@ def verify_email_code(email, code):
     cache_code = cache.get(f'verification_code_{email}')
     return cache_code == code
 
-def create_customer(customer_data, is_verified=False):
+def create_user(user_data, is_verified=False):
     if not is_verified:
         raise ValueError('Email is not verified')
     
-    customer = Customer.objects.create(
-        cust_username=customer_data['cust_username'],
-        cust_name=customer_data['cust_name'],
-        cust_password=customer_data['cust_password'],
-        cust_gender=customer_data.get('cust_gender', 'F'),
-        cust_birthday=customer_data.get('cust_birthday'),
-        cust_address=customer_data['cust_address'],
-        cust_email=customer_data['cust_email'],
-    )
-    customer.save()
-    return customer
-
-def create_manager(manager_data):
-    if ManagerAccount.objects.filter(manager_id=manager_data['manager_id']).exists():
-        raise ValueError('Manager with this ID already exists.')
+    if User.objects.filter(username=user_data['username']).exists():
+        raise ValueError('User with this ID already exists.')
     
-    manager = ManagerAccount.objects.create_user(
-        manager_id=manager_data['manager_id'],
-        password=manager_data['password'],
+    user = User.objects.create_user(
+        username=user_data['username'],
+        password=user_data['password'],
+        is_company=user_data.get('is_company', False)
     )
-    manager.save()
-    return manager
+    user.save()
+    return user
 
-def create_company(company_data):
-    if CompanyAccount.objects.filter(company_id=company_data['company_id']).exists():
-        raise ValueError('Company with this ID already exists.')
-    
-    company = CompanyAccount.objects.create(
-        company_id=company_data['company_id'],
-        company_pwd=company_data['company_pwd'],
-        activate=0  # 기본값으로 비활성화된 상태로 생성
-    )
-    company.save()
-    print(f"Created company: {company.company_id}, password: {company.company_pwd}, pk: {company.id}")
-    return company
-
-def login_user(cust_username, cust_password):
+def login_user(username, password):
     try:
-        user = Customer.objects.get(cust_username=cust_username)
-    except Customer.DoesNotExist:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
         return {"error": "Invalid credentials"}
 
-    if user.cust_password != cust_password:
+    if not user.check_password(password):
         return {"error": "Invalid credentials"}
 
     refresh = RefreshToken.for_user(user)
-    refresh['username'] = user.cust_username
-    refresh['user_type'] = 'customer'
+    refresh['username'] = user.username
+    refresh['user_type'] = 'company' if user.is_company else 'customer'
     print(f"Generated token: {refresh}")
 
     return {
@@ -90,50 +64,87 @@ def login_user(cust_username, cust_password):
         'access': str(refresh.access_token),
     }
 
+def create_customer(customer_data, is_verified=False):
+    if not is_verified:
+        raise ValueError('Email is not verified')
+
+    customer = User.objects.create(
+        username=customer_data['cust_username'],
+        name=customer_data['cust_name'],
+        password=customer_data['cust_password'],
+        gender=customer_data.get('cust_gender', 'F'),
+        birthday=customer_data.get('cust_birthday'),
+        address=customer_data['cust_address'],
+        email=customer_data['cust_email'],
+        is_company=False,  # 고객 계정이므로 is_company는 False로 설정
+    )
+    customer.set_password(customer_data['cust_password'])
+    customer.save()
+    return customer
+
+def create_manager(manager_data):
+    if User.objects.filter(username=manager_data['manager_id']).exists():
+        raise ValueError('Manager with this ID already exists.')
+
+    manager = User.objects.create(
+        username=manager_data['manager_id'],
+        is_staff=True,
+        is_superuser=True,
+        is_company=False,
+    )
+    manager.set_password(manager_data['password'])
+    manager.save()
+    return manager
+
+def create_company(company_data):
+    if User.objects.filter(username=company_data['company_id']).exists():
+        raise ValueError('Company with this ID already exists.')
+
+    company = User.objects.create(
+        username=company_data['company_id'],
+        is_company=True,
+        is_active=False,  # 기본값으로 비활성화된 상태로 생성
+    )
+    company.set_password(company_data['company_pwd'])
+    company.save()
+    return company
+
 def login_manager(manager_id, password):
-    user = None
+    try:
+        user = User.objects.get(username=manager_id, is_staff=True)
+    except User.DoesNotExist:
+        return {"error": "Invalid credentials"}
 
-    if manager_id:
-        try:
-            user = ManagerAccount.objects.get(manager_id=manager_id)
-            print(f"Found user by manager_id: {user.manager_id}")
-        except ManagerAccount.DoesNotExist:
-            print("No user found with this manager_id.")
-
-    if user and user.check_password(password):
-        print("Authentication successful")
-    else:
-        print("Authentication failed")
+    if not user.check_password(password):
         return {"error": "Invalid credentials"}
 
     refresh = RefreshToken.for_user(user)
+    refresh['username'] = user.username
+    refresh['user_type'] = 'manager'
+    print(f"Generated token: {refresh}")
+
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
 
 def login_company(company_id, company_pwd):
-    user = None
+    try:
+        user = User.objects.get(username=company_id, is_company=True)
+    except User.DoesNotExist:
+        return {"error": "Invalid credentials"}
 
-    if company_id:
-        try:
-            user = CompanyAccount.objects.get(company_id=company_id)
-            print(f"Found user by company_id: {user.company_id}")
-        except CompanyAccount.DoesNotExist:
-            print("No user found with this company_id.")
+    if not user.check_password(company_pwd):
+        return {"error": "Invalid credentials"}
 
-    if user:
-        if user.company_pwd == company_pwd:
-            if user.activate == 1:
-                print("Authentication successful")
-            else:
-                print("Company account is not activated")
-                return {"error": "Company account is not activated"}
-        else:
-            print("Authentication failed")
-            return {"error": "Invalid credentials"}
+    if not user.is_active:
+        return {"error": "Company account is not activated"}
 
     refresh = RefreshToken.for_user(user)
+    refresh['username'] = user.username
+    refresh['user_type'] = 'company'
+    print(f"Generated token: {refresh}")
+
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),

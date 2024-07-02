@@ -8,14 +8,16 @@ from shopapp.views.company_views import CompanyAccountViewSet
 from shopapp.views.item_views import ItemViewSet
 from shopapp.views.category_views import CategoryViewSet
 from shopapp.views.order_views import OrderViewSet
+from shopapp.views.review_views import ReviewViewSet
 
 router = DefaultRouter()
-router.register(r'customers', CustomerViewSet)
-router.register(r'managers', ManagerAccountViewSet)
-router.register(r'companies', CompanyAccountViewSet)
-router.register(r'items', ItemViewSet)
+router.register(r'customers', CustomerViewSet, basename='customer')
+router.register(r'managers', ManagerAccountViewSet, basename='manager')
+router.register(r'companies', CompanyAccountViewSet, basename='company')
+router.register(r'items', ItemViewSet, basename='item')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'orders', OrderViewSet, basename='order')
+router.register(r'reviews', ReviewViewSet, basename='review')
 
 urlpatterns = [
     path('', include(router.urls)),

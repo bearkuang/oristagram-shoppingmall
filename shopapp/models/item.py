@@ -1,4 +1,5 @@
 from django.db import models
+from shopapp.models.account import User
 
 class Category(models.Model):
     id = models.AutoField(primary_key=True)
@@ -14,7 +15,7 @@ class Item(models.Model):
     item_create_date = models.DateTimeField(auto_now_add=True)
     item_soldout = models.CharField(max_length=1, default='N')
     item_is_display = models.CharField(max_length=1)
-    item_company = models.CharField(max_length=30)
+    item_company = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'is_company': True})
 
 class ItemOption(models.Model):
     id = models.AutoField(primary_key=True)
@@ -40,12 +41,12 @@ class ItemImage(models.Model):
 
 class Like(models.Model):
     id = models.AutoField(primary_key=True)
-    cust_no = models.ForeignKey('Customer', on_delete=models.CASCADE)
+    cust_no = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'is_company': False})
     item_no = models.ForeignKey(Item, on_delete=models.CASCADE)
 
 class Cart(models.Model):
     id = models.AutoField(primary_key=True)
-    cust_no = models.ForeignKey('Customer', on_delete=models.CASCADE)
+    cust_no = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'is_company': False})
     cart_order_amount = models.IntegerField()
     opt_no = models.ForeignKey(ItemOption, on_delete=models.CASCADE)
     cart_create_date = models.DateTimeField(auto_now_add=True)
