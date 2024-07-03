@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from shopapp.models.account import User
 from shopapp.models.item import ItemImage
-from shopapp.services.account_services import create_company, login_company
+from shopapp.services.account_services import create_company, login_user
 from shopapp.serializers import UserSerializer, ItemSerializer, ItemOptionSerializer
 import json
 

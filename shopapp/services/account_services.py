@@ -11,7 +11,7 @@ def send_verification_email(email):
     code = generate_verification_code()
     subject = '이메일 인증 코드'
     message = f'귀하의 인증 코드는 {code} 입니다. 이 코드는 10분간 유효합니다.'
-    from_email = 'your-email@example.com'
+    from_email = 'ori178205@gmail.com'
     recipient_list = [email]
     
     send_mail(subject, message, from_email, recipient_list)
@@ -69,25 +69,25 @@ def create_customer(customer_data, is_verified=False):
         raise ValueError('Email is not verified')
 
     customer = User.objects.create(
-        username=customer_data['cust_username'],
-        name=customer_data['cust_name'],
-        password=customer_data['cust_password'],
-        gender=customer_data.get('cust_gender', 'F'),
-        birthday=customer_data.get('cust_birthday'),
-        address=customer_data['cust_address'],
-        email=customer_data['cust_email'],
+        username=customer_data['username'],
+        name=customer_data['name'],
+        password=customer_data['password'],
+        gender=customer_data.get('gender'),
+        birthday=customer_data.get('birthday'),
+        address=customer_data['address'],
+        email=customer_data['email'],
         is_company=False,  # 고객 계정이므로 is_company는 False로 설정
     )
-    customer.set_password(customer_data['cust_password'])
+    customer.set_password(customer_data['password'])
     customer.save()
     return customer
 
 def create_manager(manager_data):
-    if User.objects.filter(username=manager_data['manager_id']).exists():
+    if User.objects.filter(username=manager_data['username']).exists():
         raise ValueError('Manager with this ID already exists.')
 
     manager = User.objects.create(
-        username=manager_data['manager_id'],
+        username=manager_data['username'],
         is_staff=True,
         is_superuser=True,
         is_company=False,
@@ -97,15 +97,16 @@ def create_manager(manager_data):
     return manager
 
 def create_company(company_data):
-    if User.objects.filter(username=company_data['company_id']).exists():
+    if User.objects.filter(username=company_data['username']).exists():
         raise ValueError('Company with this ID already exists.')
 
     company = User.objects.create(
-        username=company_data['company_id'],
+        username=company_data['username'],
+        email=company_data['email'],
         is_company=True,
         is_active=False,  # 기본값으로 비활성화된 상태로 생성
     )
-    company.set_password(company_data['company_pwd'])
+    company.set_password(company_data['password'])
     company.save()
     return company
 
@@ -128,13 +129,13 @@ def login_manager(manager_id, password):
         'access': str(refresh.access_token),
     }
 
-def login_company(company_id, company_pwd):
+def login_company(username, password):
     try:
-        user = User.objects.get(username=company_id, is_company=True)
+        user = User.objects.get(username=username, is_company=True)
     except User.DoesNotExist:
         return {"error": "Invalid credentials"}
 
-    if not user.check_password(company_pwd):
+    if not user.check_password(password):
         return {"error": "Invalid credentials"}
 
     if not user.is_active:

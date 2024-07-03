@@ -36,3 +36,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+    
+    @property
+    def is_customer(self):
+        return not self.is_company

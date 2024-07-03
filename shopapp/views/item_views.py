@@ -40,9 +40,8 @@ class ItemViewSet(viewsets.ModelViewSet):
             "item_name": request.data.get('item_name'),
             "item_description": request.data.get('item_description'),
             "item_price": request.data.get('item_price'),
-            "item_soldout": request.data.get('item_soldout'),
-            "item_is_display": request.data.get('item_is_display'),
-            "item_company": request.data.get('item_company'),
+            "item_soldout": 'N',
+            "item_is_display": 'Y',
         }
 
         options_data = json.loads(request.data.get('options'))
@@ -52,7 +51,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not item_serializer.is_valid():
             print("Serializer errors:", item_serializer.errors)
         item_serializer.is_valid(raise_exception=True)
-        item = item_serializer.save()
+        item = item_serializer.save(item_company=request.user)
         
         # Handle ItemImage
         images = request.FILES.getlist('images')
@@ -175,7 +174,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
         
         # 요청에서 수량과 옵션 정보를 가져옵니다.
         quantity = request.data.get('quantity', 1)
@@ -233,7 +232,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
         
         cart_items = Cart.objects.filter(cust_no=customer)
         serializer = CartSerializer(cart_items, many=True)
@@ -284,7 +283,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
         
         like, created = Like.objects.get_or_create(cust_no=customer, item_no=item)
 
@@ -307,7 +306,7 @@ class ItemViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
         
         # 고객 객체 가져오기
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
         
         # 고객이 좋아요한 상품들 가져오기
         liked_items = Item.objects.filter(like__cust_no=customer)

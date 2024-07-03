@@ -32,7 +32,7 @@ class Review(models.Model):
     review_star = models.DecimalField(max_digits=1, decimal_places=0)
     review_contents = models.CharField(max_length=150)
     review_create_date = models.DateTimeField(auto_now_add=True)
-    review_image = models.CharField(max_length=300, null=True, default='0')
+    review_image = models.ImageField(upload_to='review_images', null=True, blank=True)
 
 class ItemImage(models.Model):
     id = models.AutoField(primary_key=True)

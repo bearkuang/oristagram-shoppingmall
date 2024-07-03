@@ -58,8 +58,8 @@ class CustomerViewSet(viewsets.ModelViewSet):
     # 로그인
     @action(detail=False, methods=['post'])
     def login(self, request):
-        cust_username = request.data.get('cust_username')
-        cust_password = request.data.get('cust_password')
+        cust_username = request.data.get('username')
+        cust_password = request.data.get('password')
 
         if not cust_username or not cust_password:
             return Response({"error": "cust_username and cust_password must be provided"}, status=status.HTTP_400_BAD_REQUEST)
@@ -73,8 +73,8 @@ class CustomerViewSet(viewsets.ModelViewSet):
     # 중복확인
     @action(detail=False, methods=['post'])
     def check_duplicate(self, request):
-        username = request.data.get('cust_username')
-        email = request.data.get('cust_email')
+        username = request.data.get('username')
+        email = request.data.get('email')
         errors = {}
 
         if username and User.objects.filter(username=username).exists():
@@ -95,8 +95,8 @@ class CustomerViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.validated_data['cust_email']
-        username = serializer.validated_data['cust_username']
+        email = serializer.validated_data['email']
+        username = serializer.validated_data['username']
         
         errors = {}
 

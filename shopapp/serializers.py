@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Count, Avg
 from .models import User, Item, ItemImage, ItemOption, Category, Cart, Order, OrderProduct, Like, Review
 
 class UserSerializer(serializers.ModelSerializer):
@@ -31,10 +32,20 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'main_cate_name', 'cate_name']
 
 class ReviewSerializer(serializers.ModelSerializer):
+    customer_username = serializers.SerializerMethodField()
+
     class Meta:
         model = Review
-        fields = ['id', 'review_star', 'review_contents', 'review_create_date', 'review_image']
-        
+        fields = ['id', 'orderproduct_no', 'item', 'review_star', 'review_contents', 'review_image', 'review_create_date', 'customer_username']
+
+    def get_customer_username(self, obj):
+        return obj.orderproduct_no.order_no.cust_no.username
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'name', 'email']
+
 class ItemSerializer(serializers.ModelSerializer):
     cate_no = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), required=True)
     images = ItemImageSerializer(many=True, read_only=True, source='itemimage_set')
@@ -43,13 +54,33 @@ class ItemSerializer(serializers.ModelSerializer):
     likes = serializers.SerializerMethodField()
     reviews = ReviewSerializer(many=True, read_only=True)
     item_description = serializers.CharField(max_length=100)
+    item_company = CompanySerializer(read_only=True)
+    rating_stats = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
-        fields = ['id', 'cate_no', 'category', 'item_name', 'item_description', 'item_price', 'item_soldout', 'item_is_display', 'item_company', 'images', 'options', 'likes', 'reviews']
+        fields = ['id', 'cate_no', 'category', 'item_name', 'item_description', 'item_price', 'item_soldout', 'item_is_display', 'item_company', 'images', 'options', 'likes', 'reviews', 'rating_stats', 'average_rating']
 
     def get_likes(self, obj):
         return Like.objects.filter(item_no=obj).count()
+    
+    def get_rating_stats(self, obj):
+        stats = Review.objects.filter(item=obj).aggregate(
+            total=Count('id'),
+            average=Avg('review_star')
+        )
+        rating_counts = Review.objects.filter(item=obj).values('review_star').annotate(count=Count('review_star'))
+        
+        return {
+            'total_reviews': stats['total'],
+            'average_rating': round(stats['average'], 2) if stats['average'] else None,
+            'rating_stats': {str(item['review_star']): item['count'] for item in rating_counts}
+        }
+    
+    def get_average_rating(self, obj):
+        avg = Review.objects.filter(item=obj).aggregate(Avg('review_star'))['review_star__avg']
+        return round(avg, 2) if avg else None
     
 class CartSerializer(serializers.ModelSerializer):
     option = ItemOptionSerializer(source='opt_no', read_only=True)

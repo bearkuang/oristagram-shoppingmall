@@ -23,7 +23,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
         
         order_data = request.data
         
@@ -48,11 +48,17 @@ class OrderViewSet(viewsets.ModelViewSet):
     # 상품 상세 페이지에서 직접 구매
     @action(detail=False, methods=['post'], permission_classes=[IsCustomer])
     def order_direct(self, request):
+        print(f"User: {request.user}")
+        print(f"Is authenticated: {request.user.is_authenticated}")
+        print(f"Is company: {getattr(request.user, 'is_company', None)}")
+        print(f"Is customer: {getattr(request.user, 'is_customer', None)}")
         customer_username = request.auth.get('username')
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
+        if customer.is_company:
+            raise PermissionDenied("Only customers can place orders.")
         
         order_data = request.data
         
@@ -101,7 +107,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not customer_username:
             raise PermissionDenied("Customer information not found in the token.")
         
-        customer = get_object_or_404(User, username=customer_username, is_customer=True)
+        customer = get_object_or_404(User, username=customer_username)
         
         orders = Order.objects.filter(cust_no=customer).order_by('-order_create_date')
         serializer = OrderSerializer(orders, many=True)
