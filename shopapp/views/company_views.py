@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from shopapp.models.account import User
 from shopapp.models.item import ItemImage
+from shopapp.models.order import Order
 from shopapp.services.account_services import create_company, login_user
-from shopapp.serializers import UserSerializer, ItemSerializer, ItemOptionSerializer
+from .permissions import IsAuthenticatedCompany
+from shopapp.serializers import UserSerializer, ItemSerializer, ItemOptionSerializer, CompanyOrderSerializer
 import json
 
 class CompanyAccountViewSet(viewsets.ModelViewSet):
@@ -77,3 +79,11 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
             option_serializer.save()
 
         return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)
+    
+    # 주문 들어온 상품 보기
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticatedCompany])
+    def company_orders(self, request):
+        company = request.user
+        orders = Order.objects.filter(order_products__opt_no__item_no__item_company=company).distinct()
+        serializer = CompanyOrderSerializer(orders, many=True, context={'company': company})
+        return Response(serializer.data)

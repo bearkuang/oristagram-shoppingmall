@@ -40,8 +40,9 @@ class ItemViewSet(viewsets.ModelViewSet):
             "item_name": request.data.get('item_name'),
             "item_description": request.data.get('item_description'),
             "item_price": request.data.get('item_price'),
-            "item_soldout": 'N',
-            "item_is_display": 'Y',
+            "item_soldout": request.data.get('item_soldout', 'N'),
+            "item_is_display": request.data.get('item_is_display', 'N'),
+            "item_company": request.user.id,
         }
 
         options_data = json.loads(request.data.get('options'))
@@ -83,7 +84,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         except Category.DoesNotExist:
             return Response({"error": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        items = Item.objects.filter(cate_no=category).order_by('-item_create_date')
+        items = Item.objects.filter(cate_no=category, item_is_display='Y').order_by('-item_create_date')
 
         # 색상 필터 적용
         if colors:
@@ -106,14 +107,14 @@ class ItemViewSet(viewsets.ModelViewSet):
     # 좋아요가 많은 상품 4개 가져오기
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def popular(self, request):
-        popular_items = Item.objects.annotate(like_count=Count('like')).order_by('-like_count')[:4]
+        popular_items = Item.objects.filter(item_is_display='Y').annotate(like_count=Count('like')).order_by('-like_count')[:4]
         serializer = self.get_serializer(popular_items, many=True)
         return Response(serializer.data)
     
     # 신상품 4개 가져오기
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def newest(self, request):
-        new_items = Item.objects.order_by('-item_create_date')[:4]
+        new_items = Item.objects.filter(item_is_display='Y').order_by('-item_create_date')[:4]
         serializer = self.get_serializer(new_items, many=True)
         return Response(serializer.data)
 
@@ -247,7 +248,7 @@ class ItemViewSet(viewsets.ModelViewSet):
         max_price = request.query_params.get('max_price')
 
         # 기본 쿼리셋
-        queryset = self.get_queryset()
+        queryset = self.get_queryset().filter(item_is_display='Y')
 
         # 색상 필터 적용
         if colors:

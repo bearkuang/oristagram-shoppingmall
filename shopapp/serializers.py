@@ -93,18 +93,36 @@ class CartSerializer(serializers.ModelSerializer):
 class OrderProductSerializer(serializers.ModelSerializer):
     item = ItemSerializer(source='opt_no.item_no', read_only=True)
     option = ItemOptionSerializer(source='opt_no', read_only=True)
+    company = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderProduct
-        fields = ['id', 'item', 'option', 'order_amount', 'review_enabled', 'order_product_status']
+        fields = ['id', 'item', 'option', 'order_amount', 'review_enabled', 'order_product_status', 'company']
+
+    def get_company(self, obj):
+        return CompanySerializer(obj.opt_no.item_no.item_company).data
 
 class OrderSerializer(serializers.ModelSerializer):
     order_products = OrderProductSerializer(many=True, read_only=True)
+    customer = UserSerializer(source='cust_no', read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'cust_no', 'order_create_date', 'order_payment_status', 'order_payment_method', 'order_total_price', 'cust_address', 'order_products']
-        
+        fields = ['id', 'customer', 'order_create_date', 'order_payment_status', 'order_payment_method', 'order_total_price', 'cust_address', 'order_products']
+
+class CompanyOrderSerializer(serializers.ModelSerializer):
+    order_products = serializers.SerializerMethodField()
+    customer = UserSerializer(source='cust_no', read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'customer', 'order_create_date', 'order_payment_status', 'order_payment_method', 'order_total_price', 'cust_address', 'order_products']
+
+    def get_order_products(self, obj):
+        company = self.context.get('company')
+        products = obj.order_products.filter(opt_no__item_no__item_company=company)
+        return OrderProductSerializer(products, many=True).data
+    
 class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like

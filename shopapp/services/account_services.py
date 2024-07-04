@@ -1,4 +1,6 @@
+from django.utils import timezone
 from shopapp.models.account import User
+from shopapp.models.loginlog import LoginLog
 from rest_framework_simplejwt.tokens import RefreshToken
 import random
 from django.core.mail import send_mail
@@ -53,6 +55,14 @@ def login_user(username, password):
 
     if not user.check_password(password):
         return {"error": "Invalid credentials"}
+    
+    if user is not None and user.check_password(password):
+        # 로그인 성공 시 로그 기록
+        LoginLog.objects.create(user=user)
+    
+    # 로그인 성공 시 last_login 업데이트
+    user.last_login = timezone.now()
+    user.save(update_fields=['last_login'])
 
     refresh = RefreshToken.for_user(user)
     refresh['username'] = user.username
@@ -119,6 +129,10 @@ def login_manager(manager_id, password):
     if not user.check_password(password):
         return {"error": "Invalid credentials"}
 
+    # 로그인 성공 시 last_login 업데이트
+    user.last_login = timezone.now()
+    user.save(update_fields=['last_login'])
+    
     refresh = RefreshToken.for_user(user)
     refresh['username'] = user.username
     refresh['user_type'] = 'manager'
@@ -140,6 +154,10 @@ def login_company(username, password):
 
     if not user.is_active:
         return {"error": "Company account is not activated"}
+    
+    # 로그인 성공 시 last_login 업데이트
+    user.last_login = timezone.now()
+    user.save(update_fields=['last_login'])
 
     refresh = RefreshToken.for_user(user)
     refresh['username'] = user.username

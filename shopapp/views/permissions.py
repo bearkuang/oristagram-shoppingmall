@@ -12,3 +12,7 @@ class IsCustomer(BasePermission):
         print(f"Is company: {getattr(request.user, 'is_company', None)}")
         print(f"Is customer: {getattr(request.user, 'is_customer', None)}")
         return bool(request.user and request.user.is_authenticated and not request.user.is_company)
+    
+class IsManagerUser(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
