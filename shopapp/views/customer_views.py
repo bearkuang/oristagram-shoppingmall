@@ -64,7 +64,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         if not cust_username or not cust_password:
             return Response({"error": "cust_username and cust_password must be provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        tokens = login_user(cust_username, cust_password)
+        tokens = login_user(cust_username, cust_password, is_company=False)
         if "error" in tokens:
             return Response(tokens, status=status.HTTP_400_BAD_REQUEST)
         

@@ -17,3 +17,9 @@ class OrderProduct(models.Model):
     opt_no = models.ForeignKey('ItemOption', on_delete=models.CASCADE)
     review_enabled = models.CharField(max_length=255, null=True, default='N')
     order_product_status = models.CharField(max_length=15, default='주문완료')
+    DELIVERY_STATUS_CHOICES = [
+        ('준비중', '준비중'),
+        ('배송시작', '배송시작'),
+        ('배송완료', '배송완료'),
+    ]
+    delivery_status = models.CharField(max_length=10, choices=DELIVERY_STATUS_CHOICES, default='준비중')

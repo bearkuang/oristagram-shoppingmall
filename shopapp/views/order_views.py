@@ -14,7 +14,7 @@ from shopapp.serializers import OrderSerializer, OrderProductSerializer
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().order_by('order_create_date')
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCustomer]
     
     # 장바구니에서 상품 선택하여 구매
     @action(detail=False, methods=['post'], permission_classes=[IsCustomer])
@@ -96,8 +96,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             order_no=order,
             order_amount=quantity,
             opt_no=item_option,
-            review_enabled='Y',  # 리뷰 작성 가능하도록 설정
-            order_product_status='주문완료'
+            review_enabled='N',  # 초기에는 리뷰 작성 불가능
+            order_product_status='주문완료',
+            delivery_status='준비중'
         )
 
     # 내 주문 목록

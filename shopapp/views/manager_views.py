@@ -93,8 +93,13 @@ class ManagerAccountViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def companies_with_pending_items(self, request):
         companies = User.objects.filter(is_company=True, item__item_is_display='N').distinct()
-        serializer = UserSerializer(companies, many=True)
-        return Response(serializer.data)
+        data = []
+        for company in companies:
+            company_data = UserSerializer(company).data
+            pending_items = Item.objects.filter(item_company=company, item_is_display='N')
+            company_data['pending_items'] = ItemSerializer(pending_items, many=True).data
+            data.append(company_data)
+        return Response(data)
     
     # 일별 트래픽
     @action(detail=False, methods=['get'])
@@ -120,3 +125,10 @@ class ManagerAccountViewSet(viewsets.ModelViewSet):
                 result[date] = 0
 
         return Response(result)
+    
+    # 승인 대기 중인 기업 목록
+    @action(detail=False, methods=['get'])
+    def pending_companies(self, request):
+        companies = User.objects.filter(is_company=True, is_active=False).distinct()
+        serializer = UserSerializer(companies, many=True)
+        return Response(serializer.data)

@@ -97,7 +97,7 @@ class OrderProductSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = OrderProduct
-        fields = ['id', 'item', 'option', 'order_amount', 'review_enabled', 'order_product_status', 'company']
+        fields = ['id', 'item', 'option', 'order_amount', 'review_enabled', 'order_product_status', 'company', 'delivery_status']
 
     def get_company(self, obj):
         return CompanySerializer(obj.opt_no.item_no.item_company).data

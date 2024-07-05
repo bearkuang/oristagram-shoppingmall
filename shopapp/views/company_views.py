@@ -1,13 +1,14 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from shopapp.models.account import User
 from shopapp.models.item import ItemImage
-from shopapp.models.order import Order
+from shopapp.models.order import Order, OrderProduct
 from shopapp.services.account_services import create_company, login_user
 from .permissions import IsAuthenticatedCompany
-from shopapp.serializers import UserSerializer, ItemSerializer, ItemOptionSerializer, CompanyOrderSerializer
+from shopapp.serializers import UserSerializer, ItemSerializer, ItemOptionSerializer, CompanyOrderSerializer, OrderProductSerializer
 import json
 
 class CompanyAccountViewSet(viewsets.ModelViewSet):
@@ -37,7 +38,7 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
         if not username or not password:
             return Response({"error": "Username and password must be provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        tokens = login_user(username, password)
+        tokens = login_user(username, password, is_company=True)
         if "error" in tokens:
             return Response(tokens, status=status.HTTP_400_BAD_REQUEST)
 
@@ -86,4 +87,21 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
         company = request.user
         orders = Order.objects.filter(order_products__opt_no__item_no__item_company=company).distinct()
         serializer = CompanyOrderSerializer(orders, many=True, context={'company': company})
+        return Response(serializer.data)
+    
+    # 상품 배송 상태 업데이트
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticatedCompany])
+    def update_delivery_status(self, request, pk=None):
+        order_product = get_object_or_404(OrderProduct, pk=pk)
+        new_status = request.data.get('delivery_status')
+        
+        if new_status not in dict(OrderProduct.DELIVERY_STATUS_CHOICES):
+            return Response({"error": "Invalid delivery status"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order_product.delivery_status = new_status
+        if new_status == '배송완료':
+            order_product.review_enabled = 'Y'
+        order_product.save()
+        
+        serializer = OrderProductSerializer(order_product)
         return Response(serializer.data)

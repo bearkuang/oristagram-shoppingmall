@@ -59,6 +59,9 @@ def login_user(username, password):
     if user is not None and user.check_password(password):
         # 로그인 성공 시 로그 기록
         LoginLog.objects.create(user=user)
+        
+    if is_company != user.is_company:
+        return {"error": "Invalid account type"}
     
     # 로그인 성공 시 last_login 업데이트
     user.last_login = timezone.now()
@@ -113,6 +116,8 @@ def create_company(company_data):
     company = User.objects.create(
         username=company_data['username'],
         email=company_data['email'],
+        name=company_data['name'],
+        address=company_data['address'],
         is_company=True,
         is_active=False,  # 기본값으로 비활성화된 상태로 생성
     )
