@@ -47,7 +47,7 @@ def create_user(user_data, is_verified=False):
     user.save()
     return user
 
-def login_user(username, password):
+def login_user(username, password, is_company=False):
     try:
         user = User.objects.get(username=username)
     except User.DoesNotExist:
@@ -56,16 +56,15 @@ def login_user(username, password):
     if not user.check_password(password):
         return {"error": "Invalid credentials"}
     
-    if user is not None and user.check_password(password):
-        # 로그인 성공 시 로그 기록
-        LoginLog.objects.create(user=user)
-        
     if is_company != user.is_company:
         return {"error": "Invalid account type"}
     
     # 로그인 성공 시 last_login 업데이트
     user.last_login = timezone.now()
     user.save(update_fields=['last_login'])
+
+    # 로그인 성공 시 로그 기록
+    LoginLog.objects.create(user=user)
 
     refresh = RefreshToken.for_user(user)
     refresh['username'] = user.username
