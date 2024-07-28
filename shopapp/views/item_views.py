@@ -10,7 +10,8 @@ from shopapp.models.account import User
 from shopapp.models.item import Item, ItemImage, ItemOption, Category, Like, Cart
 from shopapp.serializers import ItemSerializer, ItemImageSerializer, ItemOptionSerializer, LikeSerializer, CartSerializer
 import json
-from django.db.models import Count
+from django.db.models import Count, F, ExpressionWrapper, FloatField
+from django.db.models.functions import Coalesce
 from .permissions import IsAuthenticatedCompany
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -104,10 +105,20 @@ class ItemViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(items, many=True)
         return Response(serializer.data)
     
-    # 좋아요가 많은 상품 4개 가져오기
+    # 인기가 많은 상품 4개 가져오기
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def popular(self, request):
-        popular_items = Item.objects.filter(item_is_display='Y').annotate(like_count=Count('like')).order_by('-like_count')[:4]
+        popular_items = Item.objects.filter(item_is_display='Y').annotate(
+            like_count=Count('like'),
+            # 판매량이 없는 경우 0으로 처리
+            sale_count=Coalesce('sales_count', 0),
+            # 좋아요 수와 판매량의 가중 합계 계산 (좋아요 1, 판매 2의 비중)
+            popularity_score=ExpressionWrapper(
+                F('like_count') + (F('sale_count') * 2),
+                output_field=FloatField()
+            )
+        ).order_by('-popularity_score')[:4]
+        
         serializer = self.get_serializer(popular_items, many=True)
         return Response(serializer.data)
     

@@ -51,16 +51,18 @@ class ItemSerializer(serializers.ModelSerializer):
     images = ItemImageSerializer(many=True, read_only=True, source='itemimage_set')
     options = ItemOptionSerializer(many=True, read_only=True, source='itemoption_set')
     category = CategorySerializer(source='cate_no', read_only=True)
-    likes = serializers.SerializerMethodField()
+    likes = serializers.IntegerField(source='likes_count', read_only=True)
     reviews = ReviewSerializer(many=True, read_only=True)
     item_description = serializers.CharField(max_length=100)
     item_company = CompanySerializer(read_only=True)
     rating_stats = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
+    sales_count = serializers.IntegerField(read_only=True)
+    poplularity_score = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Item
-        fields = ['id', 'cate_no', 'category', 'item_name', 'item_description', 'item_price', 'item_soldout', 'item_is_display', 'item_company', 'images', 'options', 'likes', 'reviews', 'rating_stats', 'average_rating']
+        fields = ['id', 'cate_no', 'category', 'item_name', 'item_description', 'item_price', 'item_soldout', 'item_is_display', 'item_company', 'images', 'options', 'likes', 'reviews', 'rating_stats', 'average_rating', 'sales_count', 'poplularity_score']
 
     def get_likes(self, obj):
         return Like.objects.filter(item_no=obj).count()

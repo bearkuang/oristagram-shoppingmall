@@ -3,8 +3,9 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from django.db.models import Sum
 from shopapp.models.account import User
-from shopapp.models.item import ItemImage
+from shopapp.models.item import ItemImage, Item
 from shopapp.models.order import Order, OrderProduct
 from shopapp.services.account_services import create_company, login_user
 from .permissions import IsAuthenticatedCompany
@@ -54,7 +55,7 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
             "item_description": request.data.get('item_description'),
             "item_price": request.data.get('item_price'),
             "item_soldout": request.data.get('item_soldout'),
-            "item_is_display": request.data.get('item_is_display'),
+            "item_is_display": 'N',
             "item_company": request.data.get('item_company'),
         }
 
@@ -105,3 +106,33 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
         
         serializer = OrderProductSerializer(order_product)
         return Response(serializer.data)
+    
+    # 등록 중인 상품 보기
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticatedCompany])
+    def added_items(self, request):
+        company = request.user
+        items = Item.objects.filter(item_company=company).only('id', 'item_name', 'item_price').order_by('-item_create_date')
+
+        # 필터링
+        status = request.query_params.get('status')
+        if status == 'available':
+            items = items.filter(item_soldout='N')
+        elif status == 'soldout':
+            items = items.filter(item_soldout='Y')
+
+        category = request.query_params.get('cate_no')
+        if category:
+            items = items.filter(cate_no=category)
+
+        serializer = ItemSerializer(items, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    # 기업의 상품별 판매량
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticatedCompany])
+    def item_sales(self, request):
+        company = request.user
+        items = Item.objects.filter(item_company=company).annotate(
+            total_sales=Sum('orderproduct__order_amount')
+        ).values('id', 'item_name', 'total_sales')
+        
+        return Response(list(items), status=status.HTTP_200_OK)

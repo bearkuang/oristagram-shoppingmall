@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import F, Case, When
 from shopapp.models.account import User
 
 class Category(models.Model):
@@ -16,6 +17,20 @@ class Item(models.Model):
     item_soldout = models.CharField(max_length=1, default='N')
     item_is_display = models.CharField(max_length=1)
     item_company = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'is_company': True})
+    sales_count = models.IntegerField(default=0)
+    likes_count = models.IntegerField(default=0)
+
+    def increment_likes(self, amount=1):
+        self.likes_count = F('likes_count') + amount
+        self.save(update_fields=['likes_count'])
+
+    def decrement_likes(self, amount=1):
+        self.likes_count = F('likes_count') - amount
+        self.likes_count = Case(
+            When(likes_count__gte=0, then=F('likes_count')),
+            default=0
+        )
+        self.save(update_fields=['likes_count'])
 
 class ItemOption(models.Model):
     id = models.AutoField(primary_key=True)
