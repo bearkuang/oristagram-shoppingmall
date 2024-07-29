@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db.models import Sum
+from django.db.models import Sum, F
 from shopapp.models.account import User
 from shopapp.models.item import ItemImage, Item
 from shopapp.models.order import Order, OrderProduct
@@ -11,6 +11,11 @@ from shopapp.services.account_services import create_company, login_user
 from .permissions import IsAuthenticatedCompany
 from shopapp.serializers import UserSerializer, ItemSerializer, ItemOptionSerializer, CompanyOrderSerializer, OrderProductSerializer
 import json
+from django.utils import timezone
+from datetime import datetime, time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CompanyAccountViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(is_company=True)
@@ -111,7 +116,7 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticatedCompany])
     def added_items(self, request):
         company = request.user
-        items = Item.objects.filter(item_company=company).only('id', 'item_name', 'item_price').order_by('-item_create_date')
+        items = Item.objects.filter(item_company=company).only('id', 'item_name', 'item_price', 'sales_count').order_by('-item_create_date')
 
         # 필터링
         status = request.query_params.get('status')
@@ -131,8 +136,43 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticatedCompany])
     def item_sales(self, request):
         company = request.user
-        items = Item.objects.filter(item_company=company).annotate(
-            total_sales=Sum('orderproduct__order_amount')
-        ).values('id', 'item_name', 'total_sales')
+        items = Item.objects.filter(item_company=company).values('id', 'item_name', 'sales_count', 'item_price')
+        
+        # item_price를 사용하여 대략적인 total_revenue 계산
+        for item in items:
+            item['total_revenue'] = item['sales_count'] * item['item_price']
         
         return Response(list(items), status=status.HTTP_200_OK)
+    
+    # 수익 정보
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticatedCompany])
+    def revenue_data(self, request):
+        company = request.user
+        start_date = timezone.make_aware(datetime.combine(company.create_date.date(), time.min))
+        end_date = timezone.make_aware(datetime.combine(timezone.now().date(), time.max))
+
+        logger.debug(f"Fetching revenue data for company {company.id} from {start_date} to {end_date}")
+
+        revenue_data = Order.objects.filter(
+            order_products__opt_no__item_no__item_company=company,
+            order_create_date__range=[start_date, end_date]
+        ).values('order_create_date__date').annotate(
+            daily_revenue=Sum('order_total_price')
+        ).order_by('order_create_date__date')
+
+        logger.debug(f"Query result: {list(revenue_data)}")
+
+        if not revenue_data:
+            logger.warning(f"No revenue data found for company {company.id}")
+            return Response({"message": "해당 기간 동안의 수익 데이터가 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        # datetime.date 객체를 ISO 형식 문자열로 변환
+        formatted_data = [
+            {
+                'order_create_date': item['order_create_date__date'].isoformat(),
+                'daily_revenue': item['daily_revenue']
+            }
+            for item in revenue_data
+        ]
+
+        return Response(formatted_data)
