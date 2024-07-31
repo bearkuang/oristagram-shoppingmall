@@ -327,3 +327,52 @@ class ItemViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(liked_items, many=True)
         
         return Response(serializer.data)
+    
+    # 상품 검색
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def search(self, request):
+        query = request.query_params.get('q', '')
+        colors = request.query_params.getlist('color')
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+
+        items = Item.objects.filter(
+            Q(item_name__icontains=query) |
+            Q(item_description__icontains=query) |
+            Q(cate_no__cate_name__icontains=query)
+        )
+
+        if colors:
+            items = items.filter(itemoption__opt_color__in=colors)
+
+        if min_price:
+            items = items.filter(item_price__gte=min_price)
+
+        if max_price:
+            items = items.filter(item_price__lte=max_price)
+
+        items = items.distinct()
+
+        serializer = self.get_serializer(items, many=True)
+        return Response(serializer.data)
+    
+    def apply_filters_and_sorting(self, queryset, request):
+        # 색상 필터
+        colors = request.query_params.getlist('color')
+        if colors:
+            queryset = queryset.filter(itemoption__opt_color__in=colors).distinct()
+
+        # 가격 범위 필터
+        min_price = request.query_params.get('min_price')
+        max_price = request.query_params.get('max_price')
+        if min_price:
+            queryset = queryset.filter(item_price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(item_price__lte=max_price)
+
+        # 정렬
+        sort_by = request.query_params.get('sort_by', 'item_create_date')
+        sort_order = '-' if request.query_params.get('sort_order', 'desc') == 'desc' else ''
+        queryset = queryset.order_by(f'{sort_order}{sort_by}')
+
+        return queryset

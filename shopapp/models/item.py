@@ -36,7 +36,7 @@ class ItemOption(models.Model):
     id = models.AutoField(primary_key=True)
     item_no = models.ForeignKey(Item, on_delete=models.CASCADE)
     opt_color = models.CharField(max_length=10)
-    opt_size = models.CharField(max_length=5, default='FREE')
+    opt_size = models.CharField(max_length=10, default='FREE')
     opt_item_soldout = models.CharField(max_length=1, default='N')
     opt_stock = models.IntegerField(default=0)
 
