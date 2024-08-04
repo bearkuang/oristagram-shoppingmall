@@ -105,11 +105,14 @@ class CompanyAccountViewSet(viewsets.ModelViewSet):
             return Response({"error": "Invalid delivery status"}, status=status.HTTP_400_BAD_REQUEST)
         
         order_product.delivery_status = new_status
-        if new_status == '배송완료':
-            order_product.review_enabled = 'Y'
+        order_product.review_enabled = 'Y'
         order_product.save()
         
-        serializer = OrderProductSerializer(order_product)
+        updated_order_product = OrderProduct.objects.get(pk=pk)
+        print(f"Updated delivery status: {updated_order_product.delivery_status}")
+        print(f"Updated review_enabled: {updated_order_product.review_enabled}")
+        
+        serializer = OrderProductSerializer(updated_order_product)
         return Response(serializer.data)
     
     # 등록 중인 상품 보기

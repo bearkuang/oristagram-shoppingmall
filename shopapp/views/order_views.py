@@ -17,7 +17,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsCustomer]
     
     # 장바구니에서 상품 선택하여 구매
-    @action(detail=False, methods=['post'], permission_classes=[IsCustomer])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsCustomer])
     def order_from_cart(self, request):
         customer_username = request.auth.get('username')
         if not customer_username:
@@ -46,7 +46,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(order_serializer.data, status=status.HTTP_201_CREATED)
 
     # 상품 상세 페이지에서 직접 구매
-    @action(detail=False, methods=['post'], permission_classes=[IsCustomer])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsCustomer])
     def order_direct(self, request):
         print(f"User: {request.user}")
         print(f"Is authenticated: {request.user.is_authenticated}")

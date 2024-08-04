@@ -205,14 +205,14 @@ class ItemViewSet(viewsets.ModelViewSet):
         
         # 옵션 가져오기 또는 생성
         option, created = ItemOption.objects.get_or_create(
-            item_no=item,
-            opt_color=option_data['opt_color'],
-            opt_size=option_data['opt_size'],
-            defaults={
-                'opt_item_soldout': option_data['opt_item_soldout'],
-                'opt_stock': option_data['opt_stock']
-            }
-        )
+        item_no=item,
+        opt_color=option_data['opt_color'],
+        opt_size=option_data['opt_size'],
+        defaults={
+            'opt_item_soldout': option_data.get('opt_item_soldout', 'N'),
+            'opt_stock': option_data.get('opt_stock', 0)
+        }
+    )
         
         if not created:
             # 기존 옵션이 있다면 재고 확인
